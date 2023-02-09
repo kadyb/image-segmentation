@@ -2,8 +2,9 @@ library("terra")
 options(timeout = 1000)
 set.seed(1)
 
+## download data
 # url = "https://landsat.usgs.gov/files/C2_Sample_Data/LO08_L1TP_067017_20130722_20200925_02_T1.zip"
-# download.file(url, "landsat.zip")
+# download.file(url, "landsat.zip") # 1 GB
 # unzip("landsat.zip")
 
 start_time = Sys.time()
