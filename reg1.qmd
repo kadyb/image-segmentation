@@ -1,6 +1,8 @@
 ---
 title: "Regionalization #1"
-format: html
+format: 
+    html:
+      self-contained: true
 ---
 
 Setup:
