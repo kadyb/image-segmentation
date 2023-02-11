@@ -1,0 +1,147 @@
+---
+title: "Regionalization #1"
+format: 
+    html:
+      self-contained: true
+---
+
+Setup:
+
+```{r}
+# remotes::install_github("nowosad/regional")
+library(terra)
+library(supercells)
+library(regional)
+library(sf)
+library(ggplot2)
+library(cowplot)
+library(units)
+set.seed(1)
+```
+
+Reading the input data:
+
+```{r}
+ortho = rast(system.file("raster/ortho.tif", package = "supercells"))
+plot(ortho)
+```
+
+# K-means
+
+Data preparation:
+
+```{r}
+df = as.data.frame(ortho, xy = TRUE, na.rm = FALSE)
+idx = which(complete.cases(df))
+## without data scaling X and Y have more influence on the results in kmeans
+df_omit = scale(df[idx, ])
+# df_omit = df[idx, ]
+```
+
+Performing a k-means clustering and smoothing the results:
+
+```{r}
+mdl = kmeans(df_omit, 100)
+vec = rep(NA_integer_, ncell(ortho))
+vec[idx] = mdl$cluster
+rcl = rast(ortho, nlyrs = 1, vals = vec)
+rcl = focal(rcl, w = 5, fun = "modal") # smooth
+```
+
+Converting the results to segments (polygons):
+
+```{r}
+vect = as.polygons(rcl)
+vect_sf = st_as_sf(vect)
+vect_sf = st_collection_extract(vect_sf, "POLYGON")
+vect_sf = st_cast(vect_sf, "POLYGON")
+plot(ortho)
+plot(vect_sf[0], add = TRUE)
+```
+
+# Supercells
+
+```{r}
+ortho = rast(system.file("raster/ortho.tif", package = "supercells"))
+ortho_slic1 = supercells(ortho, k = 2900, compactness = 10)
+plot(ortho)
+plot(st_geometry(ortho_slic1), add = TRUE)
+```
+
+# Results quality
+
+## Areas
+
+```{r}
+vect_sf$area = st_area(vect_sf)
+ortho_slic1$area = st_area(ortho_slic1)
+gg3 = ggplot(vect_sf, aes(area)) +
+  geom_histogram() +
+  labs(title = "K-means")
+gg4 = ggplot(ortho_slic1, aes(area)) +
+  geom_histogram() +
+  labs(title = "Supercells")
+plot_grid(gg3, gg4, ncol = 2)
+```
+
+## Inhomogeneity
+
+Less is better:
+
+```{r}
+rih1 = reg_inhomogeneity(vect_sf, ortho, sample_size = 200, na.rm = TRUE)
+vect_sf$rih1 = rih1
+my_limit = max(rih1, na.rm = TRUE)
+plot(vect_sf["rih1"], main = "K-means: inhomogeneity", 
+     breaks = seq(0, my_limit, by = 20))
+```
+
+```{r}
+rih2 = reg_inhomogeneity(ortho_slic1, ortho, sample_size = 200)
+ortho_slic1$rih2 = rih2
+plot(ortho_slic1["rih2"], main = "Supercells: Inhomogeneity", 
+     breaks = seq(0, my_limit, by = 20))
+```
+
+```{r}
+gg1 = ggplot(vect_sf, aes(rih1)) +
+  geom_histogram() +
+  scale_x_continuous(limits = c(0, my_limit)) +
+  labs(title = "K-means: inhomogeneity")
+gg2 = ggplot(ortho_slic1, aes(rih2)) +
+  geom_histogram() +
+  scale_x_continuous(limits = c(0, my_limit)) +
+  labs(title = "Supercells: inhomogeneity")
+plot_grid(gg1, gg2, ncol = 1)
+```
+
+```{r}
+weighted.mean(rih1, as.numeric(vect_sf$area), na.rm = TRUE)
+```
+
+```{r}
+weighted.mean(rih2, as.numeric(ortho_slic1$area), na.rm = TRUE)
+```
+
+# Comments
+
+My comments below are very brief (and thus omitting many details):
+
+1. Have you read https://doi.org/10.1016/j.jag.2022.102935? I think it may explain some things...
+2. Supercells/superpixels usually aim not to create segments (per se), but rather to create groups of fairly homogeneous cells that could be merged later.
+3. K-means vs SLIC: the superpixels SLIC method is sometimes described as a spatially constrained k-means.
+Why this approach is useful:
+
+- (a) we are not looking at all of the pixels while creating a single cluster; and thus, it makes our calculations more efficient.
+- (b) it gives as more control over the output number of polygons (and/or their sizes).
+
+4. K-means vs supercells: K-means use the Euclidean distance only; also it calculates centroids as averages of the values. 
+The supercells approach is more flexible: it allows to select one of many distance measures and averaging functions.
+The example is the vignette is (hopefully) easy to understand, but the actual power of this approach is when you have many unrelated raster layers.
+
+5. Supercells vs hierarchical clustering: Hierarchical clustering requires calculating a dissimilarity matrix. Thus, for example, if you have 10000 by 10000 raster, then you would need to fit a 10000 by 10000 matrix into your computer memory. Now try to think of an even larger raster...
+6. As you may see above: k-means segments are less homogeneous, and you have less control over their numbers. They also often provide very small and very large polygons. They also "grow" into NA data.
+7. The supercells package works on fairly large data (given some limitations), see https://github.com/Nowosad/supercells/issues/10#issuecomment-962447901
+8. Supercells have a few important arguments, including `compactness` and `clean`. 
+Deciding on the best `compactness` value is not always easy: one of the possible approaches is to disable cleaning and then test a few compactness values on some smaller areas. See https://github.com/Nowosad/supercells/issues/21#issuecomment-1339728555
+ 
