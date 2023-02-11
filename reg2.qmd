@@ -122,3 +122,26 @@ weighted.mean(rih1, as.numeric(vect_sf$area), na.rm = TRUE)
 ```{r}
 weighted.mean(rih2, as.numeric(ortho_slic1$area), na.rm = TRUE)
 ```
+
+# Comments
+
+My comments below are very brief (and thus omitting many details):
+
+1. Have you read https://doi.org/10.1016/j.jag.2022.102935? I think it may explain some things...
+2. Supercells/superpixels usually aim not to create segments (per se), but rather to create groups of fairly homogeneous cells that could be merged later.
+3. K-means vs SLIC: the superpixels SLIC method is sometimes described as a spatially constrained k-means.
+Why this approach is useful:
+
+- (a) we are not looking at all of the pixels while creating a single cluster; and thus, it makes our calculations more efficient.
+- (b) it gives as more control over the output number of polygons (and/or their sizes).
+
+4. K-means vs supercells: K-means use the Euclidean distance only; also it calculates centroids as averages of the values. 
+The supercells approach is more flexible: it allows to select one of many distance measures and averaging functions.
+The example is the vignette is (hopefully) easy to understand, but the actual power of this approach is when you have many unrelated raster layers.
+
+5. Supercells vs hierarchical clustering: Hierarchical clustering requires calculating a dissimilarity matrix. Thus, for example, if you have 10000 by 10000 raster, then you would need to fit a 10000 by 10000 matrix into your computer memory. Now try to think of an even larger raster...
+6. As you may see above: k-means segments are less homogeneous, and you have less control over their numbers. They also often provide very small and very large polygons. They also "grow" into NA data.
+7. The supercells package works on fairly large data (given some limitations), see https://github.com/Nowosad/supercells/issues/10#issuecomment-962447901
+8. Supercells have a few important arguments, including `compactness` and `clean`. 
+Deciding on the best `compactness` value is not always easy: one of the possible approaches is to disable cleaning and then test a few compactness values on some smaller areas. See https://github.com/Nowosad/supercells/issues/21#issuecomment-1339728555
+ 
