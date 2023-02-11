@@ -41,11 +41,11 @@ df_omit = df[idx, ]
 Performing a k-means clustering and smoothing the results:
 
 ```{r}
-mdl = kmeans(df_omit, 500)
+mdl = kmeans(df_omit, 550)
 vec = rep(NA_integer_, ncell(ortho))
 vec[idx] = mdl$cluster
 rcl = rast(ortho, nlyrs = 1, vals = vec)
-rcl = focal(rcl, w = 7, fun = "modal") # smooth
+rcl = focal(rcl, w = 5, fun = "modal") # smooth
 ```
 
 Converting the results to segments (polygons):
@@ -63,7 +63,7 @@ plot(vect_sf[0], add = TRUE)
 
 ```{r}
 ortho = rast(system.file("raster/ortho.tif", package = "supercells"))
-ortho_slic1 = supercells(ortho, k = 1000, compactness = 10)
+ortho_slic1 = supercells(ortho, k = 1400, compactness = 10)
 plot(ortho)
 plot(st_geometry(ortho_slic1), add = TRUE)
 ```
