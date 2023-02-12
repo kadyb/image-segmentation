@@ -8,6 +8,8 @@ clustering algorithm with [supercells](https://github.com/Nowosad/supercells)
 based on SLIC algorithm.
 
 Note: Currently the kmeans prediction method in `landsat.R` is very slow
-(calculations take ~1 hour).
+(calculations take ~1 hour). Alternatively, you can check out the example
+in `landsat_blocks.R`, which uses processing in blocks (it takes ~18 min),
+but unfortunately the boundaries between blocks are strongly visible.
 
 ![segmentation](https://user-images.githubusercontent.com/35004826/217364937-4e9e5c14-a71b-4601-9de5-8791b777d50b.png)
